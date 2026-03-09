@@ -18,3 +18,10 @@ body {
   color: var(--text);
   font-family: system-ui, -apple-system, sans-serif;
 }
+
+.auth-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}

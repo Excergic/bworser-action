@@ -1,0 +1,17 @@
+.venv
+__pycache__
+*.pyc
+.env
+.env.*
+!.env.example
+.git
+*.md
+scripts
+chroma_db
+.vercel
+uv.lock
+.python-version
+*.egg-info
+.eggs
+dist
+build
