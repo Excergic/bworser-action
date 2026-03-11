@@ -1,20 +1,28 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Sora, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const sora = Sora({
   subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  variable: "--font-display",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-body",
+});
+
+const jetbrains = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-mono-var",
 });
 
 export const metadata: Metadata = {
-  title: "StudyBuddy – Ask anything",
+  title: "StudyMate – Ask anything",
   description: "AI-powered study assistant. Ask anything, get clear answers.",
 };
 
@@ -29,10 +37,18 @@ export default function RootLayout({
       signUpUrl="/sign-up"
       afterSignOutUrl="/"
     >
-      <html lang="en">
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        >
+      <html
+        lang="en"
+        className={`${sora.variable} ${jakarta.variable} ${jetbrains.variable}`}
+        suppressHydrationWarning
+      >
+        {/* Anti-FOUC: apply stored theme before React hydrates */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('studymate-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark')}catch(e){}`,
+          }}
+        />
+        <body className="antialiased">
           {children}
         </body>
       </html>

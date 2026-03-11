@@ -19,12 +19,12 @@ import {
 } from "@/lib/api";
 import { MessageContent } from "@/app/components/MessageContent";
 
-const SUGGESTIONS = [
-  "Explain recursion with a simple example",
-  "What are the key concepts in linear algebra?",
-  "Summarize the causes of World War I",
-  "How does photosynthesis work?",
-];
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
 
 function formatConversationDate(createdAt: string): string {
   const d = new Date(createdAt);
@@ -47,14 +47,50 @@ export default function Home() {
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isDark, setIsDark] = useState(false);
   const messagesLoadIdRef = useRef<string | null>(null);
   const skipNextLoadRef = useRef(false);
+
+  // Sync dark mode state with document (after anti-FOUC script runs in layout)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("studymate-theme");
+      if (stored === "dark") setIsDark(true);
+    } catch {}
+  }, []);
+
+  // Persist selected conversation to localStorage
+  useEffect(() => {
+    try {
+      if (selectedId) {
+        localStorage.setItem("studymate-selected-id", selectedId);
+      } else {
+        localStorage.removeItem("studymate-selected-id");
+      }
+    } catch {}
+  }, [selectedId]);
+
+  function toggleTheme() {
+    const next = !isDark;
+    setIsDark(next);
+    try {
+      localStorage.setItem("studymate-theme", next ? "dark" : "light");
+    } catch {}
+    document.documentElement.setAttribute("data-theme", next ? "dark" : "");
+  }
 
   const loadConversations = useCallback(async () => {
     if (!getToken) return;
     const token = await getToken();
     const list = await fetchConversations(token ?? null);
     setConversations(list);
+    // Restore last selected conversation across page refreshes
+    try {
+      const stored = localStorage.getItem("studymate-selected-id");
+      if (stored && list.some((c: ConversationItem) => c.id === stored)) {
+        setSelectedId(stored);
+      }
+    } catch {}
   }, [getToken]);
 
   const loadMessages = useCallback(
@@ -160,25 +196,35 @@ export default function Home() {
     setError(null);
   }
 
+  const showCentered = messages.length === 0 && !loading && !messagesLoading;
+
   return (
-    <div className="min-h-screen bg-[#0f0f0f] text-zinc-100 flex">
-      {/* Sidebar - History Dashboard */}
+    <div className="min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)] flex">
+      {/* Sidebar */}
       <aside
         className={`${
           sidebarOpen ? "w-64" : "w-0"
-        } flex-shrink-0 border-r border-zinc-800 bg-zinc-950/80 flex flex-col transition-all overflow-hidden`}
+        } flex-shrink-0 border-r border-[var(--border)] bg-[var(--bg-surface)] flex flex-col transition-all duration-300 overflow-hidden`}
       >
-        <div className="p-3 flex items-center justify-between border-b border-zinc-800 min-h-[56px]">
-          <Link
-            href="/"
-            className="text-sm font-semibold tracking-tight text-zinc-100 hover:text-white truncate"
-          >
-            StudyBuddy
+        <div className="p-3 flex items-center justify-between border-b border-[var(--border)] min-h-[56px]">
+          <Link href="/" className="flex items-center gap-2 truncate">
+            <div
+              className="w-7 h-7 rounded-xl flex items-center justify-center text-sm flex-shrink-0"
+              style={{ background: "var(--accent-grad)" }}
+            >
+              📚
+            </div>
+            <span
+              className="text-[14px] font-bold tracking-tight text-[var(--text-primary)]"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              StudyMate
+            </span>
           </Link>
           <button
             type="button"
             onClick={() => setSidebarOpen((o: boolean) => !o)}
-            className="p-1.5 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-raised)] transition-colors duration-150 flex-shrink-0"
             aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
           >
             {sidebarOpen ? (
@@ -197,17 +243,17 @@ export default function Home() {
             <button
               type="button"
               onClick={handleNewChat}
-              className="m-3 py-2.5 px-3 rounded-lg border border-zinc-700 bg-zinc-800/50 text-sm text-zinc-200 hover:border-zinc-600 hover:bg-zinc-800 transition-colors flex items-center gap-2"
+              className="mx-3 mt-3 py-2 px-3 rounded-xl border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)] transition-all duration-200 flex items-center gap-2"
             >
-              <span className="text-zinc-400">+</span>
+              <span style={{ color: "var(--accent)" }}>+</span>
               New chat
             </button>
             <div className="flex-1 overflow-y-auto px-2 pb-4">
-              <p className="px-2 py-1 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              <p className="px-4 pt-4 pb-2 text-[10px] uppercase tracking-widest font-semibold text-[var(--text-muted)]">
                 History
               </p>
               {conversations.length === 0 && (
-                <p className="px-2 py-2 text-zinc-500 text-sm">No conversations yet.</p>
+                <p className="px-3 py-2 text-[var(--text-muted)] text-xs">No conversations yet.</p>
               )}
               <ul className="space-y-0.5">
                 {conversations.map((c: ConversationItem) => (
@@ -215,16 +261,16 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => setSelectedId(c.id)}
-                      className={`w-full text-left py-2 px-3 rounded-lg text-sm truncate transition-colors ${
+                      className={`w-full text-left py-2 px-3 rounded-xl text-xs truncate transition-all duration-200 ${
                         selectedId === c.id
-                          ? "bg-zinc-800 text-white"
-                          : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                          ? "bg-[var(--accent-soft)] border border-[var(--accent)]/30 text-[var(--accent)]"
+                          : "text-[var(--text-secondary)] hover:bg-[var(--bg-raised)] hover:text-[var(--text-primary)]"
                       }`}
                     >
-                      <span className="block truncate">
+                      <span className="block truncate font-medium">
                         {c.title || "New chat"}
                       </span>
-                      <span className="text-xs text-zinc-500 block mt-0.5">
+                      <span className="font-mono text-[10px] text-[var(--text-muted)] block mt-0.5">
                         {formatConversationDate(c.created_at)}
                       </span>
                     </button>
@@ -238,13 +284,13 @@ export default function Home() {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
+        <header className="h-14 flex items-center justify-between px-5 border-b border-[var(--border)] bg-[var(--bg-surface)]/80 backdrop-blur-md shadow-[0_1px_12px_rgba(0,0,0,0.06)] flex-shrink-0">
           <div className="flex items-center gap-2">
             {!sidebarOpen && (
               <button
                 type="button"
                 onClick={() => setSidebarOpen(true)}
-                className="p-1.5 rounded text-zinc-500 hover:text-zinc-300"
+                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-raised)] transition-colors duration-150"
                 aria-label="Open sidebar"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -252,16 +298,45 @@ export default function Home() {
                 </svg>
               </button>
             )}
-            <span className="text-sm font-medium text-zinc-400">StudyBuddy</span>
+            <span
+              className="text-[15px] font-bold tracking-tight text-[var(--text-primary)]"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              StudyMate
+            </span>
+            <span
+              className="text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full"
+              style={{ color: "var(--accent)", background: "var(--accent-soft)" }}
+            >
+              AI
+            </span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* Dark / light mode toggle */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-raised)] transition-colors duration-150"
+              aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {isDark ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="5" strokeWidth={2} />
+                  <path strokeLinecap="round" strokeWidth={2} d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+                </svg>
+              )}
+            </button>
             {userLoaded && (
               <>
                 <Show when="signed-out">
                   <SignInButton mode="modal">
                     <button
                       type="button"
-                      className="text-sm text-zinc-400 hover:text-zinc-100 transition-colors"
+                      className="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors duration-150"
                     >
                       Sign in
                     </button>
@@ -269,7 +344,8 @@ export default function Home() {
                   <SignUpButton mode="modal">
                     <button
                       type="button"
-                      className="rounded-full bg-white text-black text-sm font-medium px-4 py-2 hover:bg-zinc-200 transition-colors"
+                      className="rounded-full text-sm font-semibold px-4 py-2 text-white transition-all duration-200 hover:shadow-[0_4px_12px_rgba(14,165,233,0.35)] hover:-translate-y-0.5"
+                      style={{ background: "var(--accent-grad)" }}
                     >
                       Sign up
                     </button>
@@ -288,104 +364,144 @@ export default function Home() {
         </header>
 
         <main className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto px-4 py-6">
-            <div className="max-w-2xl mx-auto">
-              {messages.length === 0 && !loading && (
-                <div className="text-center py-12">
-                  <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white mb-2">
-                    StudyBuddy
+          {showCentered ? (
+            /* Claude-like centered layout when no messages */
+            <div className="flex-1 flex flex-col items-center justify-center px-5 bg-[var(--bg-base)]">
+              <div className="w-full max-w-2xl animate-fade-up">
+                <div className="text-center mb-8">
+                  <h1
+                    style={{ fontFamily: "var(--font-display)" }}
+                    className="text-[2.2rem] font-extrabold leading-[1.15] tracking-tight text-[var(--text-primary)] mb-2"
+                  >
+                    {getGreeting()}
                   </h1>
-                  <p className="text-zinc-500 text-sm sm:text-base mb-8">
-                    Ask anything. Get clear, reliable answers. Your history appears in the sidebar.
+                  <p className="text-[var(--text-secondary)] text-base">
+                    How can I help you today?
                   </p>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {SUGGESTIONS.map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setQuery(s)}
-                        className="rounded-full border border-zinc-700 bg-zinc-800/50 px-4 py-2 text-sm text-zinc-300 hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-100 transition-colors"
-                      >
-                        {s}
-                      </button>
-                    ))}
+                </div>
+                {error && (
+                  <div className="mb-3 rounded-xl bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.25)] px-4 py-3 text-[var(--danger)] text-sm">
+                    {error}
                   </div>
-                </div>
-              )}
-
-              {messagesLoading && (
-                <div className="flex justify-center py-8">
-                  <span className="inline-block w-6 h-6 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-
-              {!messagesLoading && messages.length > 0 && (
-                <div className="space-y-6 pb-4">
-                  {messages.map((m: MessageItem) => (
-                    <div
-                      key={m.id}
-                      className="rounded-2xl border border-zinc-700/80 bg-zinc-900/60 overflow-hidden"
-                    >
-                      <div className="px-4 py-3 border-b border-zinc-700/80">
-                        <p className="text-zinc-400 text-sm font-medium">Your question</p>
-                        <p className="text-zinc-100 mt-1">{m.question}</p>
-                      </div>
-                      <div className="px-4 py-4">
-                        <p className="text-zinc-400 text-sm font-medium mb-2">Answer</p>
-                        {m.answer ? (
-                          <MessageContent content={m.answer} />
-                        ) : (
-                          <span className="inline-flex items-center gap-2 text-zinc-500 text-sm">
-                            <span className="inline-block w-4 h-4 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin" />
-                            Thinking...
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex-shrink-0 p-4 border-t border-zinc-800 bg-[#0f0f0f]">
-            <div className="max-w-2xl mx-auto">
-              {error && (
-                <div className="mb-3 rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-3 text-red-400 text-sm">
-                  {error}
-                </div>
-              )}
-              <div className="flex items-center gap-3 rounded-2xl border border-zinc-700/80 bg-zinc-900/80 backdrop-blur-sm px-4 py-3.5 focus-within:border-zinc-500 focus-within:ring-1 focus-within:ring-zinc-500/50 transition-all">
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
-                  placeholder="Ask anything..."
-                  className="flex-1 bg-transparent text-zinc-100 placeholder-zinc-500 text-base outline-none min-w-0"
-                  disabled={loading}
-                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                    if (e.key === "Enter" && query.trim()) handleAsk();
-                  }}
-                />
-                {loading ? (
-                  <span className="inline-block w-5 h-5 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                ) : (
+                )}
+                <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-4 focus-within:border-[var(--accent)] focus-within:ring-4 focus-within:ring-[var(--accent-glow)] transition-all duration-200 shadow-sm">
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
+                    placeholder="What would you like me to help with?"
+                    className="flex-1 bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-sm outline-none min-w-0"
+                    disabled={loading}
+                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                      if (e.key === "Enter" && query.trim()) handleAsk();
+                    }}
+                  />
                   <button
                     type="button"
                     onClick={handleAsk}
                     disabled={!query.trim()}
-                    className={`rounded-lg text-sm font-semibold px-5 py-2.5 transition-all flex-shrink-0 cursor-pointer ${
+                    className={`rounded-xl text-sm font-semibold px-5 py-2.5 text-white transition-all duration-200 flex-shrink-0 ${
                       query.trim()
-                        ? "bg-zinc-700 text-white hover:bg-zinc-600 active:bg-zinc-800 shadow-sm"
-                        : "bg-zinc-800/50 text-zinc-500 cursor-not-allowed"
+                        ? "shadow-[0_4px_18px_var(--accent-glow)] hover:shadow-[0_6px_26px_rgba(14,165,233,0.35)] hover:-translate-y-0.5 active:translate-y-0"
+                        : "opacity-40 cursor-not-allowed"
                     }`}
+                    style={{ background: "var(--accent-grad)" }}
                   >
                     Ask
                   </button>
-                )}
+                </div>
+                <p className="text-center text-[11px] text-[var(--text-muted)] mt-3">
+                  Press{" "}
+                  <kbd className="px-1.5 py-0.5 rounded-md bg-[var(--bg-raised)] border border-[var(--border)] font-mono text-[10px]">
+                    Enter
+                  </kbd>{" "}
+                  to send
+                </p>
               </div>
             </div>
-          </div>
+          ) : (
+            /* Normal chat layout */
+            <>
+              <div className="flex-1 overflow-y-auto px-5 py-8 bg-[var(--bg-base)]">
+                <div className="max-w-2xl mx-auto">
+                  {messagesLoading && (
+                    <div className="flex justify-center py-8">
+                      <span className="inline-block w-6 h-6 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
+                  {!messagesLoading && messages.length > 0 && (
+                    <div className="space-y-6 pb-4">
+                      {messages.map((m: MessageItem) => (
+                        <div
+                          key={m.id}
+                          className="bg-[var(--bg-surface)] rounded-2xl overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.06)] border border-[var(--border)]"
+                        >
+                          <div className="px-6 py-4 border-b border-[var(--border)]">
+                            <p className="text-[10px] uppercase tracking-widest font-semibold text-[var(--text-muted)] mb-1.5">
+                              Your question
+                            </p>
+                            <p className="text-[var(--text-primary)] text-[15px] leading-relaxed">{m.question}</p>
+                          </div>
+                          <div className="px-6 py-5">
+                            <p className="text-[10px] uppercase tracking-widest font-semibold text-[var(--text-muted)] mb-3">
+                              Answer
+                            </p>
+                            {m.answer ? (
+                              <MessageContent content={m.answer} />
+                            ) : (
+                              <span className="inline-flex items-center gap-2 text-[var(--text-muted)] text-sm">
+                                <span className="inline-block w-4 h-4 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
+                                Thinking...
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex-shrink-0 p-4 border-t border-[var(--border)] bg-[var(--bg-surface)]">
+                <div className="max-w-2xl mx-auto">
+                  {error && (
+                    <div className="mb-3 rounded-xl bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.25)] px-4 py-3 text-[var(--danger)] text-sm">
+                      {error}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-3.5 focus-within:border-[var(--accent)] focus-within:ring-4 focus-within:ring-[var(--accent-glow)] transition-all duration-200 shadow-sm">
+                    <input
+                      type="text"
+                      value={query}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
+                      placeholder="Ask a follow-up..."
+                      className="flex-1 bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-sm outline-none min-w-0"
+                      disabled={loading}
+                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                        if (e.key === "Enter" && query.trim()) handleAsk();
+                      }}
+                    />
+                    {loading ? (
+                      <span className="inline-block w-5 h-5 border-2 border-sky-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleAsk}
+                        disabled={!query.trim()}
+                        className={`rounded-xl text-sm font-semibold px-5 py-2.5 text-white transition-all duration-200 flex-shrink-0 ${
+                          query.trim()
+                            ? "shadow-[0_4px_18px_var(--accent-glow)] hover:shadow-[0_6px_26px_rgba(14,165,233,0.35)] hover:-translate-y-0.5 active:translate-y-0"
+                            : "opacity-40 cursor-not-allowed"
+                        }`}
+                        style={{ background: "var(--accent-grad)" }}
+                      >
+                        Ask
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </main>
       </div>
     </div>
