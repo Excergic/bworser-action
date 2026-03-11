@@ -42,13 +42,13 @@ export default function RootLayout({
         className={`${sora.variable} ${jakarta.variable} ${jetbrains.variable}`}
         suppressHydrationWarning
       >
-        {/* Anti-FOUC: apply stored theme before React hydrates */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('studymate-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark')}catch(e){}`,
-          }}
-        />
         <body className="antialiased">
+          {/* Anti-FOUC: must be first in body so theme applies before any paint */}
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `try{var t=localStorage.getItem('studymate-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark')}catch(e){}`,
+            }}
+          />
           {children}
         </body>
       </html>
