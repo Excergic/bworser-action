@@ -20,7 +20,6 @@ from db.supabase import (
     list_conversations,
     save_qa,
 )
-from services.ai import generate_answer, stream_answer
 
 
 class AskRequest(BaseModel):

@@ -23,6 +23,9 @@ class Settings:
     supabase_url: str = os.getenv("SUPABASE_URL", "")
     supabase_service_role_key: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
+    # Serper (web search for agent)
+    serper_api_key: str = os.getenv("SERPER_API_KEY", "")
+
     # Optional: Clerk JWT verification (if you want to verify frontend tokens)
     clerk_publishable_key: str = os.getenv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "")
     clerk_secret_key: str = os.getenv("CLERK_SECRET_KEY", "")
@@ -30,6 +33,10 @@ class Settings:
     @property
     def openai_configured(self) -> bool:
         return bool(self.openai_api_key)
+
+    @property
+    def serper_configured(self) -> bool:
+        return bool(self.serper_api_key)
 
     @property
     def supabase_configured(self) -> bool:
