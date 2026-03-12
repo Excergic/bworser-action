@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from auth.clerk import get_email_from_token
 from config import get_settings
+from services.ai import generate_answer, stream_answer
 from db.supabase import (
     get_conversation,
     get_first_question_per_conversation,

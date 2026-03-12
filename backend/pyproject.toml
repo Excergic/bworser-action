@@ -16,6 +16,7 @@ dependencies = [
     "langchain>=0.3.0",
     "langchain-openai>=0.3.0",
     "langchain-community>=0.3.0",
-    "deepagents>=0.4.9",
     "tavily-python>=0.7.23",
+    "langgraph>=1.1.0",
+    "pydantic-settings>=2.13.1",
 ]
