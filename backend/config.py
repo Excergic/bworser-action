@@ -18,10 +18,13 @@ class Settings(BaseSettings):
     supabase_url: str = os.getenv("SUPABASE_URL", "")
     supabase_service_role_key: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
-    # Tavily 
+    # Tavily
     tavily_api_key: str = os.getenv("TAVILY_API_KEY", "")
 
     serpapi_api_key: str = os.getenv("SERPAPI_API_KEY", "")
+
+    # Browser-Use
+    browser_use_api_key: str = os.getenv("BROWSER_USE_API_KEY", "")
 
     # Optional: Clerk JWT verification (if you want to verify frontend tokens)
     clerk_publishable_key: str = os.getenv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "")

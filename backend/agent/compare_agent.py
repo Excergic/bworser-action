@@ -181,20 +181,18 @@ def _extract_product_data(results: list[dict], source_filter: str) -> list[Produ
     return products
 
 
-def _search_shopping(query: str, source_filter: str) -> list[ProductInfo]:
+def _search_shopping_tavily(query: str, source_filter: str) -> list[ProductInfo]:
     """
-    Search for products on a specific platform using Tavily with domain filtering.
-    1. Optimizes the query via LLM (returns JSON query)
-    2. Searches Tavily restricted to the platform domain
-    3. Extracts structured data (price, specs, rating) via LLM from raw snippets
+    Fallback: search via Tavily + LLM extraction.
+    1. Optimizes query via LLM
+    2. Searches Tavily restricted to platform domain
+    3. Extracts structured data via LLM from snippets
     """
     domain = "amazon.in" if source_filter == "amazon" else "flipkart.com"
 
-    # Step 1: Optimize query
     optimized_query = _optimize_search_query(query, domain)
     print(f"[Tavily] {source_filter} query: {optimized_query!r}")
 
-    # Step 2: Search
     try:
         client = TavilyClient(api_key=_tavily_key())
         response = client.search(
@@ -208,8 +206,28 @@ def _search_shopping(query: str, source_filter: str) -> list[ProductInfo]:
         print(f"[Tavily] {source_filter} search error: {e}")
         return []
 
-    # Step 3: Extract structured data via LLM
     return _extract_product_data(raw_results, source_filter)
+
+
+def _search_shopping(query: str, source_filter: str) -> list[ProductInfo]:
+    """
+    Search for products on a specific platform.
+    Tries browser-use first (accurate real-time data), falls back to Tavily.
+    """
+    # Lazy import to avoid circular dependency at module load time
+    from agent.browser_agent import browser_search_product
+
+    try:
+        print(f"[BrowserUse] trying {source_filter} search for: {query!r}")
+        products = browser_search_product(query, source_filter)
+        if products:
+            print(f"[BrowserUse] {source_filter}: got {len(products)} results")
+            return products
+        print(f"[BrowserUse] {source_filter}: no results, falling back to Tavily")
+    except Exception as e:
+        print(f"[BrowserUse] {source_filter} failed ({e}), falling back to Tavily")
+
+    return _search_shopping_tavily(query, source_filter)
 
 
 def _search_product_url(url: str) -> ProductInfo | None:
